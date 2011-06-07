@@ -1,0 +1,15 @@
+About
+============================================================================
+Osmt is a set of tools for accessing and manipulating OSM data via (X)API.
+
+Homepage:
+    http://github.com/xificurk/osmt
+
+Author:
+    Petr Morávek [Xificurk]
+    Jabber ID: xificurk@jabber.cz
+    Email: xificurk@gmail.com
+
+Requirements
+============================================================================
+* Python 3.1 or newer
