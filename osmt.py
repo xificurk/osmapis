@@ -27,12 +27,18 @@ __license__ = "LGPL 3.0"
 
 __version__ = "0.6.0"
 
-from base64 import encodebytes as base64encode
-from http.client import HTTPConnection
+from base64 import encodestring as base64encode
+try:
+    from http.client import HTTPConnection
+except ImportError:
+    from httplib import HTTPConnection
 from logging import getLogger
 import os.path
 from time import sleep
-from urllib.parse import unquote
+try:
+    from urllib.parse import unquote
+except ImportError:
+    from urllib import unquote
 import xml.etree.cElementTree as ET
 
 __all__ = ["API_VERSION",
@@ -1045,7 +1051,7 @@ class WebAPI:
         if response.status == 200:
             body = response.read().decode("utf8", "replace")
             connection.close()
-            return body
+            return body.encode("utf8")
         elif response.status in (301, 302, 303, 307):
             # Try to redirect
             connection.close()
@@ -1183,7 +1189,7 @@ class FileCache(DummyCache):
 
         """
         self._log = getLogger("osmt.cache.file")
-        if not os.path.isdir(directory):
+        if directory is None or not os.path.isdir(directory):
             self._log.error("Directory not found '{0}'.".format(directory))
             raise IOError((1, "Directory not found.", directory))
         self.directory = directory
