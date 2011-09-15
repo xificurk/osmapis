@@ -1042,7 +1042,7 @@ class WebAPI:
                 raise ValueError("Invalid credentials.")
             else:
                 headers["Authorization"] = "Basic " + base64encode("{user}:{password}".format(**self.credentials).encode("utf8")).decode().strip()
-        if payload is not None:
+        if payload is not None and not isinstance(payload, bytes):
             payload = payload.encode("utf8")
         connection = HTTPConnection(server)
         connection.connect()
@@ -1065,7 +1065,7 @@ class WebAPI:
             server = url[2]
             path = "/" + url[3]
             return self.request(server, path, method=method, payload=payload, auth=auth, retry=retry)
-        elif response.status in (404, 410):
+        elif response.status in (400, 404, 409, 410, 412):
             connection.close()
             self._log.error("Could not find {0}{1}".format(server, path))
             raise ApiError(response.status, response.reason, "")
