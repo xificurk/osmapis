@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+Release 0.7.0 (2011-10-11)
     [CHG] XAPI replace with OverpassAPI.
     [CHG] Refactoring of the code.
 
