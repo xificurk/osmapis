@@ -22,7 +22,7 @@ __author__ = "Petr Morávek (xificurk@gmail.com)"
 __copyright__ = "Copyright (C) 2010 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from base64 import b64encode
@@ -1807,6 +1807,10 @@ class Node(OSMPrimitive):
         Node == Node
         Node != Node
 
+    Attributes:
+        lat         --- Latitude of the node.
+        lon         --- Longitude of the node.
+
     Class methods:
         from_xml    --- Create Node wrapper from XML representation.
 
@@ -1838,13 +1842,29 @@ class Node(OSMPrimitive):
 
     def __eq__(self, other):
         if not isinstance(other, Node):
-            raise NotImplementedError
-        return self.attrib == other.attrib and self.tag == other.tag
+            return NotImplemented
+        return self.id == other.id and self.version == other.version and self.tag == other.tag and self.lat == other.lat and self.lon == other.lon
 
     def __ne__(self, other):
         if not isinstance(other, Node):
-            raise NotImplementedError
+            return NotImplemented
         return not self.__eq__(self, other)
+
+    @property
+    def lat(self):
+        return self.attrib.get("lat")
+
+    @lat.setter
+    def lat(self, value):
+        self.attrib["lat"] = float(value)
+
+    @property
+    def lon(self):
+        return self.attrib.get("lon")
+
+    @lon.setter
+    def lon(self, value):
+        self.attrib["lon"] = float(value)
 
 
 class Way(OSMPrimitive):
@@ -1911,7 +1931,7 @@ class Way(OSMPrimitive):
     def __eq__(self, other):
         if not isinstance(other, Way):
             return NotImplemented
-        return self.attrib == other.attrib and self.tag == other.tag and self.nd == other.nd
+        return self.id == other.id and self.version == other.version and self.tag == other.tag and self.nd == other.nd
 
     def __ne__(self, other):
         if not isinstance(other, Way):
@@ -2001,7 +2021,7 @@ class Relation(OSMPrimitive):
     def __eq__(self, other):
         if not isinstance(other, Relation):
             return NotImplemented
-        return self.attrib == other.attrib and self.tag == other.tag and self.member == other.member
+        return self.id == other.id and self.version == other.version and self.tag == other.tag and self.member == other.member
 
     def __ne__(self, other):
         if not isinstance(other, Relation):
@@ -2110,9 +2130,11 @@ class OSM(XMLElement, MutableSet):
         return chain(self.node.values(), self.way.values(), self.relation.values())
 
     def __contains__(self, item):
+        if not isinstance(item, (Node, Way, Relation)):
+            raise NotImplementedError
         for container, cls in ((self.node, Node), (self.way, Way), (self.relation, Relation)):
             if isinstance(item, cls):
-                return item.id in container and item == container[item.id]
+                return container.get(item.id) == item
         return False
 
     def add(self, item):
