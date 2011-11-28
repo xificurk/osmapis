@@ -115,7 +115,7 @@ class HTTPClient(object):
         if response.status == 200:
             body = response.read()
             connection.close()
-            if server != API.server and response.getheader("Content-Type") != "application/osm3s":
+            if server != API.server and response.getheader("Content-Type") != "application/osm3s+xml":
                 # Overpass API returns always status 200, grr!
                 raise APIError(response.status, "Unexpected Content-type {}".format(response.getheader("Content-Type")), body.decode("utf-8", "replace").strip())
             return body
