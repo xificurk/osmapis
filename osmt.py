@@ -3,6 +3,7 @@
 Osmt is a set of tools for accessing and manipulating OSM data via (Overpass) API.
 
 Classes:
+    QHS             --- Interface for Quick History Service.
     OverpassAPI     --- OSM Overpass API interface.
     API             --- OSM API interface.
     HTTPClient      --- Interface for accessing data over HTTP.
@@ -44,7 +45,8 @@ except ImportError:
     from urllib import unquote, urlencode
 
 
-__all__ = ["OverpassAPI",
+__all__ = ["QHS",
+           "OverpassAPI",
            "API",
            "HTTPClient",
            "NullCache",
@@ -115,7 +117,7 @@ class HTTPClient(object):
         if response.status == 200:
             body = response.read()
             connection.close()
-            if server != API.server and response.getheader("Content-Type") != "application/osm3s+xml":
+            if server == OverpassAPI.server and response.getheader("Content-Type") != "application/osm3s+xml":
                 # Overpass API returns always status 200, grr!
                 raise APIError(response.status, "Unexpected Content-type {}".format(response.getheader("Content-Type")), body.decode("utf-8", "replace").strip())
             return body
@@ -768,6 +770,88 @@ class BaseWriteAPI(object):
         """
         return self.delete_elements("relation", ids, changeset)
 
+
+
+class QHS(object):
+    """
+    Interface for Quick History Service.
+
+    Attributes:
+        http        --- Interface for accessing data over HTTP.
+        server      --- Domain name of QHS.
+        basepath    --- Path to the API on the server.
+        version         --- Version of OSM API.
+
+    Methods:
+        request     --- Low-level method to retrieve data from server.
+        problems    --- Check licensing problems.
+
+    """
+
+    http = HTTPClient
+    version = 0.6
+    server = "wtfe.gryph.de"
+    basepath = "/api/{}/".format(version)
+
+    def request(self, path, data):
+        """
+        Low-level method to retrieve data from server.
+
+        Arguments:
+            path        --- Currently only 'problems'.
+            data        --- Data to send with the request.
+
+        """
+        path = "{}{}".format(self.basepath, path)
+        payload = urlencode(data)
+        return self.http.request(self.server, path, method="POST", payload=payload)
+
+    def problems(self, element):
+        """
+        Check licensing problems.
+
+        Returns the same type of object as passed in element argument. To each
+        Node, Way and Relation instance will be added 'license' argument
+        containing found problems, or None.
+
+        Arguments:
+            element     --- Data to check - Node, Way, Relation, or OSM instance.
+
+        """
+        if isinstance(element, (Node, Way, Relation)):
+            query = {"{}s".format(element.TAG_NAME()): element.id}
+        elif isinstance(element, OSM):
+            query = {}
+            for type_ in ("node", "way", "relation"):
+                query["{}s".format(type_)] = ",".join(str(id_) for id_ in getattr(element, type_).keys())
+        else:
+            raise TypeError("Element must be a Node, Way, Relation or OSM instance.")
+
+        result = self.request("problems", query)
+        result = self._parse_problems(result)
+        if isinstance(element, (Node, Way, Relation)):
+            try:
+                element.license = result[element.TAG_NAME()][element.id]
+            except KeyError:
+                element.license = None
+        elif isinstance(element, OSM):
+            for child in element:
+                try:
+                    child.license = result[child.TAG_NAME()][child.id]
+                except KeyError:
+                    child.license = None
+        return element
+
+    def _parse_problems(self, data):
+        data = ET.XML(data)
+        result = {"node": {}, "way": {}, "relation": {}}
+        for type_, container in result.items():
+            for element in data.findall(type_):
+                problems = []
+                for user in element.findall("user"):
+                    problems.append(dict(user.attrib))
+                container[int(element.attrib["id"])] = problems
+        return result
 
 
 class OverpassAPI(BaseReadAPI):
@@ -1798,6 +1882,7 @@ class OSMPrimitive(OSMElement):
             element.history = history
         max_id = max(self.history.keys())
         return self.history[max_id]
+
 
 class Node(OSMPrimitive):
     """

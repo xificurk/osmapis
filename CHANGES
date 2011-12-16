@@ -1,6 +1,11 @@
 CHANGES
 ============================================================================
 
+Release 0.7.1 (2011-12-16)
+    [ADD] Interface for Quick History Service.
+    [ADD] Node instances have lat, lon properties.
+    [CHG] Better comparison methods for OSM wrappers.
+
 Release 0.7.0 (2011-10-11)
     [CHG] XAPI replace with OverpassAPI.
     [CHG] Refactoring of the code.
