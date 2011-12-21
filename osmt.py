@@ -2255,6 +2255,7 @@ class OSC(XMLElement):
     OSC XML document wrapper.
 
     Class methods:
+        from_diff       --- Create OSC XML document wrapper by diffing two OSM instances.
         from_xml        --- Create OSC XML document wrapper from XML representation.
 
     Attributes:
@@ -2266,6 +2267,33 @@ class OSC(XMLElement):
         to_xml          --- Get ET.Element representation of wrapper.
 
     """
+
+    @classmethod
+    def from_diff(cls, parent, child):
+        """
+        Create OSC XML document wrapper by diffing two OSM instances.
+
+        Arguments:
+            parent  --- OSM instance with original data.
+            child   --- OSM instance with changed data.
+
+        """
+        if not (isinstance(parent, OSM) and isinstance(child, OSM)):
+            raise TypeError("Both arguments must be OSM instances.")
+        create = set()
+        modify = set()
+        delete = set()
+        for type_ in ("node", "way", "relation"):
+            parent_elements = getattr(parent, type_)
+            child_elements = getattr(child, type_)
+            for id_ in set(child_elements.keys()) | set(parent_elements.keys()):
+                if id_ not in child_elements:
+                    delete.add(parent_elements[id_])
+                elif id_ not in parent_elements:
+                    create.add(child_elements[id_])
+                elif parent_elements[id_] != child_elements[id_]:
+                    modify.add(child_elements[id_])
+        return cls(create, modify, delete)
 
     @classmethod
     def from_xml(cls, data):
