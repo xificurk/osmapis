@@ -23,7 +23,7 @@ __author__ = "Petr Morávek (xificurk@gmail.com)"
 __copyright__ = "Copyright (C) 2010 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from base64 import b64encode
@@ -1933,7 +1933,7 @@ class Node(OSMPrimitive):
     def __ne__(self, other):
         if not isinstance(other, Node):
             return NotImplemented
-        return not self.__eq__(self, other)
+        return not self.__eq__(other)
 
     @property
     def lat(self):
@@ -2021,7 +2021,7 @@ class Way(OSMPrimitive):
     def __ne__(self, other):
         if not isinstance(other, Way):
             return NotImplemented
-        return not self.__eq__(self, other)
+        return not self.__eq__(other)
 
     def __contains__(self, item):
         if not isinstance(item, Node):
@@ -2111,7 +2111,7 @@ class Relation(OSMPrimitive):
     def __ne__(self, other):
         if not isinstance(other, Relation):
             return NotImplemented
-        return not self.__eq__(self, other)
+        return not self.__eq__(other)
 
     def __contains__(self, item):
         if not isinstance(item, (Node, Way, Relation)):

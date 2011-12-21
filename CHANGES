@@ -1,6 +1,8 @@
 CHANGES
 ============================================================================
 
+    [FIX] Fix __ne__ methods of Node, Way, Relation wrappers.
+
 Release 0.7.1 (2011-12-16)
     [ADD] Interface for Quick History Service.
     [ADD] Node instances have lat, lon properties.
