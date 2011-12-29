@@ -23,7 +23,7 @@ __author__ = "Petr Morávek (xificurk@gmail.com)"
 __copyright__ = "Copyright (C) 2010 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.7.2"
+__version__ = "0.7.3"
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from base64 import b64encode
@@ -911,7 +911,7 @@ class OverpassAPI(BaseReadAPI):
 
         """
         if ET.iselement(query):
-            query = ET.tostring(query)
+            query = ET.tostring(query, encoding="utf-8")
         try:
             data = self.cache[query]
         except KeyError:
@@ -1180,7 +1180,7 @@ class API(BaseReadAPI, BaseWriteAPI):
                 if main_tag_only:
                     for child in element:
                         element.remove(child)
-        return ET.tostring(payload)
+        return ET.tostring(payload, encoding="utf-8")
 
     ##################################################
     # HTTP methods                                   #
@@ -1350,7 +1350,7 @@ class API(BaseReadAPI, BaseWriteAPI):
             changeset = Changeset(tag=tag)
         elif not isinstance(changeset, Changeset):
             raise TypeError("Changeset must be Changeset instance or None.")
-        payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml()))
+        payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml(), encoding="utf-8"))
         path = "changeset/create"
         changeset.attrib["id"] = int(self.put(path, payload))
         return changeset
@@ -1367,7 +1367,7 @@ class API(BaseReadAPI, BaseWriteAPI):
         """
         if not isinstance(changeset, Changeset):
             raise TypeError("Changeset must be Changeset instance.")
-        payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml()))
+        payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml(), encoding="utf-8"))
         path = "changeset/{}".format(changeset.id)
         return Changeset.from_xml(ET.XML(self.put(path, payload)).find("changeset"))
 
