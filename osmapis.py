@@ -8,8 +8,6 @@ Classes:
     OverpassAPI     --- OSM Overpass API interface.
     API             --- OSM API interface.
     HTTPClient      --- Interface for accessing data over HTTP.
-    NullCache       --- Null dummy cache.
-    FileCache       --- Cache that stores data as files in a designated directory.
     Node            --- Node wrapper.
     Way             --- Way wrapper.
     Relation        --- Relation wrapper.
@@ -50,8 +48,6 @@ __all__ = ["QHS",
            "OverpassAPI",
            "API",
            "HTTPClient",
-           "NullCache",
-           "FileCache",
            "Node",
            "Way",
            "Relation",
@@ -884,12 +880,6 @@ class OverpassAPI(BaseReadAPI):
     server = "www.overpass-api.de"
     basepath = "/api/"
 
-    def __init__(self, directory=None):
-        try:
-            self.cache = FileCache(directory)
-        except IOError:
-            self.cache = NullCache()
-
     def request(self, path, data):
         """
         Low-level method to retrieve data from server.
@@ -913,12 +903,7 @@ class OverpassAPI(BaseReadAPI):
         """
         if ET.iselement(query):
             query = ET.tostring(query, encoding="utf-8")
-        try:
-            data = self.cache[query]
-        except KeyError:
-            data = self.request("interpreter", query)
-            self.cache[query] = data
-        return OSM.from_xml(data)
+        return OSM.from_xml(self.request("interpreter", query))
 
     ##################################################
     # READ API                                       #
@@ -1630,78 +1615,6 @@ class API(BaseReadAPI, BaseWriteAPI):
         for element in self.get_elements(type_, ids):
             delete.append(self.delete_element(element, changeset))
         return OSC(delete=delete)
-
-
-
-############################################################
-### Cache for Overpass API requests.                     ###
-############################################################
-
-class NullCache(object):
-    """
-    Null dummy cache.
-
-    """
-
-    def __getitem__(self, key):
-        raise KeyError
-
-    def __setitem__(self, key, value):
-        pass
-
-    def __delitem__(self, key):
-        pass
-
-
-class FileCache(NullCache):
-    """
-    Cache that stores data as files in a designated directory.
-
-    Attributes:
-        directory       --- Directory for storing cache files.
-        suffix          --- Suffix of cache files.
-
-    """
-
-    suffix = ".osm.cache"
-
-    def __init__(self, directory):
-        """
-        Raise IOError if the passed directory is invalid.
-
-        Arguments:
-            directory   --- Directory for storing cache files.
-
-        """
-        if directory is None or not os.path.isdir(directory):
-            raise IOError((1, "Directory not found.", directory))
-        self.directory = directory
-
-    def get_filename(self, key):
-        if not isinstance(key, bytes):
-            key = key.encode("utf-8")
-        return sha1(key).hexdigest() + self.suffix
-
-    def get_filepath(self, key):
-        return os.path.join(self.directory, self.get_filename(key))
-
-    def __getitem__(self, key):
-        path = self.get_filepath(key)
-        if not os.path(path):
-            raise KeyError
-        with open(path) as fp:
-            return fp.read()
-
-    def __setitem__(self, key, value):
-        path = self.get_filepath(key)
-        with open(path, "w") as fp:
-            fp.write(value)
-
-    def __delitem__(self, key):
-        path = self.get_filepath(key)
-        if not os.path(path):
-            raise KeyError
-        os.remove(path)
 
 
 
