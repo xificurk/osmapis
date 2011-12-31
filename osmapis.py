@@ -102,7 +102,7 @@ class HTTPClient(object):
             retry       --- Number of re-attempts on error.
 
         """
-        cls.log.debug("{}({}) {}{} << {}".format(method, retry, server, path, payload is not None))
+        cls.log.debug("{}({}) {}{} << payload {}".format(method, retry, server, path, payload is not None))
         req_headers = dict(cls.headers)
         req_headers.update(headers)
         if payload is not None and not isinstance(payload, bytes):
@@ -116,7 +116,7 @@ class HTTPClient(object):
             connection.close()
             if server == OverpassAPI.server and response.getheader("Content-Type") != "application/osm3s+xml":
                 # Overpass API returns always status 200, grr!
-                raise APIError(response.status, "Unexpected Content-type {}".format(response.getheader("Content-Type")), body.decode("utf-8", "replace").strip())
+                raise APIError("Unexpected Content-type {}".format(response.getheader("Content-Type")), payload)
             return body
         elif response.status in (301, 302, 303, 307):
             # Try to redirect
@@ -124,7 +124,7 @@ class HTTPClient(object):
             url = response.getheader("Location")
             if url is None:
                 cls.log.error("Got code {}, but no location header.".format(response.status))
-                raise APIError(response.status, response.reason, "")
+                raise APIError("Unable to redirect the request.", payload)
             url = unquote(url)
             cls.log.debug("Redirecting to {}".format(url))
             url = url.split("/", 3)
@@ -132,15 +132,16 @@ class HTTPClient(object):
             path = "/" + url[3]
             return cls.request(server, path, method=method, headers=headers, payload=payload, retry=retry)
         elif 400 <= response.status < 500:
+            body = response.read().decode("utf-8", "replace").strip()
             connection.close()
-            cls.log.error("Could not find {}{}".format(server, path))
-            raise APIError(response.status, response.reason, "")
+            cls.log.error("Got error {} ({}).".format(response.reason, response.status))
+            raise APIError(body, payload)
         else:
             body = response.read().decode("utf-8", "replace").strip()
             connection.close()
             if retry <= 0:
                 cls.log.error("Could not download {}{}".format(server, path))
-                raise APIError(response.status, response.reason, body)
+                raise APIError("Got error {} ({}).".format(response.reason, response.status), payload)
             else:
                 wait = 30
                 cls.log.warn("Got error {} ({})... will retry in {} seconds.".format(response.status, response.reason, wait))
@@ -2261,23 +2262,20 @@ class APIError(Exception):
     OSM API exception.
 
     Attributes:
-        status      --- HTTP status code returned by API.
-        reason      --- The reason for returned status code.
+        reason      --- The reason of failure.
         payload     --- Data sent to API with request.
 
     """
 
-    def __init__(self, status, reason, payload):
+    def __init__(self, reason, payload):
         """
         Arguments:
-            status      --- HTTP status code returned by API.
-            reason      --- The reason for returned status code.
+            reason      --- The reason of failure.
             payload     --- Data sent to API with request.
 
         """
-        self.status = status
         self.reason = reason
         self.payload = payload
 
     def __str__(self):
-        return "Request failed: {} ({}) << {}".format(self.status, self.reason, self.payload)
+        return "Request failed: {}".format(self.reason)
