@@ -24,10 +24,9 @@ __license__ = "LGPL 3.0"
 
 __version__ = "0.8.0"
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from base64 import b64encode
 from collections import MutableSet, MutableMapping
-from hashlib import sha1
 from itertools import chain
 import logging
 import os
