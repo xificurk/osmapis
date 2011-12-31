@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+    [CHG] Rename the module to osmapis.
     [ADD] Create OSC instance by diffing two OSM instances.
     [FIX] Fix __ne__ methods of Node, Way, Relation wrappers.
 

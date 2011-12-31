@@ -1,10 +1,10 @@
 About
 ============================================================================
-Osmt is a set of tools for accessing and manipulating OSM data
-via (Overpass) API.
+Osmapis is a set of tools for accessing and manipulating OSM data
+via OSM API, Overpass API, Quick History Service.
 
 Homepage:
-    http://github.com/xificurk/osmt
+    http://github.com/xificurk/osmapis
 
 Author:
     Petr Morávek [Xificurk]

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Osmt is a set of tools for accessing and manipulating OSM data via (Overpass) API.
+Osmapis is a set of tools for accessing and manipulating OSM data via OSM API,
+Overpass API, Quick History Service.
 
 Classes:
     QHS             --- Interface for Quick History Service.
@@ -23,7 +24,7 @@ __author__ = "Petr Morávek (xificurk@gmail.com)"
 __copyright__ = "Copyright (C) 2010 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.7.3"
+__version__ = "0.8.0"
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 from base64 import b64encode
@@ -60,7 +61,7 @@ __all__ = ["QHS",
            "APIError"]
 
 
-logging.getLogger('osmt').addHandler(logging.NullHandler())
+logging.getLogger('osmapis').addHandler(logging.NullHandler())
 
 
 ############################################################
@@ -83,8 +84,8 @@ class HTTPClient(object):
         raise TypeError("This class cannot be instantionalized.")
 
     headers = {}
-    headers["User-agent"] = "osmt/{0}".format(__version__)
-    log = logging.getLogger("osmt.http")
+    headers["User-agent"] = "osmapis/{0}".format(__version__)
+    log = logging.getLogger("osmapis.http")
 
     @classmethod
     def request(cls, server, path, method="GET", headers={}, payload=None, retry=10):
@@ -1102,7 +1103,7 @@ class API(BaseReadAPI, BaseWriteAPI):
     """
 
     http = HTTPClient
-    log = logging.getLogger("osmt.api")
+    log = logging.getLogger("osmapis.api")
     _capabilities = None
     _changeset = None
     version = 0.6
@@ -1127,7 +1128,7 @@ class API(BaseReadAPI, BaseWriteAPI):
             auto_changeset = {}
         auto_changeset.setdefault("enabled", True)
         auto_changeset.setdefault("size", 200)
-        auto_changeset.setdefault("tag", {}).setdefault("created_by", "osmt/{0}".format(__version__))
+        auto_changeset.setdefault("tag", {}).setdefault("created_by", "osmapis/{0}".format(__version__))
         self.auto_changeset = auto_changeset
 
     def __del__(self):
@@ -2244,7 +2245,7 @@ class OSM(XMLElement, MutableSet):
             strip       --- Attributes that should be filtered out.
 
         """
-        element = ET.Element("osm", {"version": str(API.version), "generator": "osmt"})
+        element = ET.Element("osm", {"version": str(API.version), "generator": "osmapis"})
         for child in self:
             element.append(child.to_xml(strip=strip))
         return element
@@ -2327,7 +2328,7 @@ class OSC(XMLElement):
             strip       --- Attributes that should be filtered out.
 
         """
-        element = ET.Element("osmChange", {"version":str(API.version), "generator":"osmt"})
+        element = ET.Element("osmChange", {"version":str(API.version), "generator":"osmapis"})
         for action in ("create", "modify", "delete"):
             action_element = getattr(self, action).to_xml(strip=strip)
             if len(action_element.getchildren()) > 0:
