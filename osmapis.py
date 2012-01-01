@@ -1637,6 +1637,71 @@ WARNING: Customized classes should always inherit from the default ones,
 wrappers = {"node": Node, "way": Way, "relation": Relation,
             "changeset": Changeset, "osm": OSM, "osc": OSC}
 
+class XMLFile(object):
+    """
+    Abstract wrapper for XML Elements.
+
+    Abstract methods:
+        to_xml          --- Get ET.Element representation of wrapper.
+        from_xml        --- Create wrapper from XML representation.
+
+    Class methods:
+        load            --- Load the wrapper from file.
+
+    Methods:
+        save            --- Save the wrapper into file.
+
+    """
+
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def from_xml(cls, data):
+        """
+        Create wrapper from XML representation.
+
+        Arguments:
+            data    --- ET.Element or XML string.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def to_xml(self, strip=()):
+        """
+        Get ET.Element representation of wrapper.
+
+        Keyworded arguments:
+            strip       --- Attributes that should be filtered out.
+
+        """
+        raise NotImplementedError
+
+    def save(self, filename):
+        """
+        Save the wrapper into file.
+
+        Arguments:
+            filename        --- Filename where to save the wrapper.
+
+        """
+        with open(filename, "w") as fp:
+            fp.write('<?xml version="1.0" encoding="UTF-8"?>')
+            fp.write(ET.tostring(self.to_xml(), encoding="utf-8"))
+
+    @classmethod
+    def load(cls, filename):
+        """
+        Load the wrapper from file.
+
+        Arguments:
+            filename        --- Filename from where to load the wrapper.
+
+        """
+        with open(filename) as fp:
+            return cls.from_xml(fp.read())
+
+
 class XMLElement(object):
     """
     Abstract wrapper for XML Elements.
@@ -2095,7 +2160,7 @@ class Changeset(OSMElement):
         return cls(attrib, tag)
 
 
-class OSM(XMLElement, MutableSet):
+class OSM(XMLElement, XMLFile, MutableSet):
     """
     OSM XML document wrapper. Essentially a mutable set of Node, Way, Relation wrappers.
 
@@ -2182,7 +2247,7 @@ class OSM(XMLElement, MutableSet):
         return element
 
 
-class OSC(XMLElement):
+class OSC(XMLElement, XMLFile):
     """
     OSC XML document wrapper.
 
