@@ -1422,7 +1422,7 @@ class API(BaseReadAPI, BaseWriteAPI):
         elif version is not None:
             raise TypeError("Version must be integer, '*' or None.")
         osm = wrappers["osm"].from_xml(self.get(path))
-        return getattr(osm, type_)[id_]
+        return getattr(osm, type_ + "s")[id_]
 
     def get_element_full(self, type_, id_):
         """
@@ -1627,16 +1627,6 @@ class API(BaseReadAPI, BaseWriteAPI):
 ### Wrappers for OSM Elements and documents.             ###
 ############################################################
 
-"""
-Dictionary containing the classes to use for OSM element wrappers.
-
-This is the place, where you can set customized wrapper classes.
-WARNING: Customized classes should always inherit from the default ones,
-         otherwise BAD things will happen!
-"""
-wrappers = {"node": Node, "way": Way, "relation": Relation,
-            "changeset": Changeset, "osm": OSM, "osc": OSC}
-
 class XMLFile(object):
     """
     Abstract wrapper for XML Elements.
@@ -1766,9 +1756,12 @@ class XMLElement(object):
         for key, value in data.items():
             if key in strip:
                 continue
-            attribs[key] = str(value)
-            if isinstance(value, bool):
-                attribs[key] = attribs[key].lower()
+            if isinstance(value, (int, float)):
+                attribs[key] = str(value)
+            elif isinstance(value, bool):
+                attribs[key] = str(value).lower()
+            else:
+                attribs[key] = value
         return attribs
 
 
@@ -2124,7 +2117,7 @@ class Relation(OSMPrimitive):
 
         """
         element = OSMPrimitive.to_xml(self, strip=strip)
-        for member in self.member:
+        for member in self.members:
             attribs = self.unparse_attribs(member, strip=strip)
             ET.SubElement(element, "member", attribs)
         return element
@@ -2336,18 +2329,18 @@ class OSC(XMLElement, XMLFile):
         """
         if not ET.iselement(data):
             data = ET.XML(data)
-        create = containers["osm"]()
-        modify = containers["osm"]()
-        delete = containers["osm"]()
+        create = wrappers["osm"]()
+        modify = wrappers["osm"]()
+        delete = wrappers["osm"]()
         for elem_name, container in (("create", create), ("modify", modify), ("delete", delete)):
             for element in data.findall(elem_name):
-                container |= containers["osm"].from_xml(element)
+                container |= wrappers["osm"].from_xml(element)
         return cls(create, modify, delete)
 
     def __init__(self, create=(), modify=(), delete=()):
-        self.create = containers["osm"](create)
-        self.modify = containers["osm"](modify)
-        self.delete = containers["osm"](delete)
+        self.create = wrappers["osm"](create)
+        self.modify = wrappers["osm"](modify)
+        self.delete = wrappers["osm"](delete)
 
     def to_xml(self, strip=()):
         """
@@ -2365,6 +2358,16 @@ class OSC(XMLElement, XMLFile):
                 action_element.attrib = {}
                 element.append(action_element)
         return element
+
+"""
+Dictionary containing the classes to use for OSM element wrappers.
+
+This is the place, where you can set customized wrapper classes.
+WARNING: Customized classes should always inherit from the default ones,
+         otherwise BAD things will happen!
+"""
+wrappers = {"node": Node, "way": Way, "relation": Relation,
+            "changeset": Changeset, "osm": OSM, "osc": OSC}
 
 
 
