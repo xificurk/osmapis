@@ -825,8 +825,8 @@ class QHS(object):
             query = {"{}s".format(element.xml_tag): element.id}
         elif isinstance(element, OSM):
             query = {}
-            for type_ in ("node", "way", "relation"):
-                query["{}s".format(type_)] = ",".join(str(id_) for id_ in getattr(element, type_).keys())
+            for type_ in ("nodes", "ways", "relations"):
+                query[type_] = ",".join(str(id_) for id_ in getattr(element, type_).keys())
         else:
             raise TypeError("Element must be a Node, Way, Relation or OSM instance.")
 
@@ -961,7 +961,7 @@ class OverpassAPI(BaseReadAPI):
         query = '<id-query type="{}" ref="{}"/>'.format(type_, id_)
         query += '<print mode="meta"/>'
         osm = self.interpreter(query)
-        return getattr(osm, type_)[id_]
+        return getattr(osm, type_ + "s")[id_]
 
     def get_element_full(self, type_, id_):
         """
@@ -1110,7 +1110,7 @@ class API(BaseReadAPI, BaseWriteAPI):
                                 changeset creation:
                                     'enabled' - Enable auto_changeset (boolean).
                                     'size' - Maximum size of changeset (integer).
-                                    'tag' - Default tags (dictionary).
+                                    'tags' - Default tags (dictionary).
 
         """
         self.username = username
@@ -1119,7 +1119,7 @@ class API(BaseReadAPI, BaseWriteAPI):
             auto_changeset = {}
         auto_changeset.setdefault("enabled", True)
         auto_changeset.setdefault("size", 200)
-        auto_changeset.setdefault("tag", {}).setdefault("created_by", "osmapis/{0}".format(__version__))
+        auto_changeset.setdefault("tags", {}).setdefault("created_by", "osmapis/{0}".format(__version__))
         self.auto_changeset = auto_changeset
 
     def __del__(self):
@@ -1336,15 +1336,15 @@ class API(BaseReadAPI, BaseWriteAPI):
         """
         if changeset is None:
             # No Changset instance provided => create new one
-            tag = dict(self.auto_changeset["tag"])
+            tags = dict(self.auto_changeset["tags"])
             if comment is not None:
-                tag["comment"] = comment
-            changeset = wrappers["changeset"](tag=tag)
+                tags["comment"] = comment
+            changeset = wrappers["changeset"](tags=tags)
         elif not isinstance(changeset, Changeset):
             raise TypeError("Changeset must be Changeset instance or None.")
         payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml(), encoding="utf-8"))
         path = "changeset/create"
-        changeset.attrib["id"] = int(self.put(path, payload))
+        changeset.attribs["id"] = int(self.put(path, payload))
         return changeset
 
     def update_changeset(self, changeset):
@@ -1544,8 +1544,8 @@ class API(BaseReadAPI, BaseWriteAPI):
         payload = "<osm>{}</osm>".format(self._format_payload(element, changeset_id))
         data = self.put(path, payload)
         self._auto_changeset_clear()
-        element.attrib["version"] = int(data)
-        element.attrib["changeset"] = int(changeset_id)
+        element.attribs["version"] = int(data)
+        element.attribs["changeset"] = int(changeset_id)
         element.history = {element.version: element}
         return element
 
@@ -1569,8 +1569,8 @@ class API(BaseReadAPI, BaseWriteAPI):
         payload = "<osm>{}</osm>".format(self._format_payload(element, changeset_id))
         data = self.put(path, payload)
         self._auto_changeset_clear()
-        element.attrib["version"] = int(data)
-        element.attrib["changeset"] = int(changeset_id)
+        element.attribs["version"] = int(data)
+        element.attribs["changeset"] = int(changeset_id)
         element.history = {element.version: element}
         return element
 
@@ -1594,9 +1594,9 @@ class API(BaseReadAPI, BaseWriteAPI):
         payload = "<osm>{}</osm>".format(self._format_payload(element, changeset_id, main_tag_only=True))
         data = self.delete(path, payload)
         self._auto_changeset_clear()
-        element.attrib["visible"] = False
-        element.attrib["version"] = int(data)
-        element.attrib["changeset"] = int(changeset_id)
+        element.attribs["visible"] = False
+        element.attribs["version"] = int(data)
+        element.attribs["changeset"] = int(changeset_id)
         element.history = {element.version: element}
         return element
 
@@ -1783,8 +1783,8 @@ class OSMElement(XMLElement):
         id          --- Id of wrapper, read-only.
 
     Attributes:
-        attrib      --- Attributes of wrapper.
-        tag         --- Tags of wrapper.
+        attribs     --- Attributes of wrapper.
+        tags        --- Tags of wrapper.
 
     Methods:
         to_xml      --- Get ET.Element representation of wrapper.
@@ -1810,11 +1810,11 @@ class OSMElement(XMLElement):
     @property
     def id(self):
         """ id of wrapper """
-        return self.attrib.get("id")
+        return self.attribs.get("id")
 
-    def __init__(self, attrib={}, tag={}):
-        self.attrib = dict(attrib)
-        self.tag = dict(tag)
+    def __init__(self, attribs={}, tags={}):
+        self.attribs = dict(attribs)
+        self.tags = dict(tags)
 
     def to_xml(self, strip=()):
         """
@@ -1824,10 +1824,10 @@ class OSMElement(XMLElement):
             strip       --- Attributes that should be filtered out.
 
         """
-        attrib = self.unparse_attribs(self.attrib, strip=strip)
-        element = ET.Element(self.xml_tag, attrib)
-        for key in sorted(self.tag.keys()):
-            ET.SubElement(element, "tag", {"k": key, "v": self.tag[key]})
+        attribs = self.unparse_attribs(self.attribs, strip=strip)
+        element = ET.Element(self.xml_tag, attribs)
+        for key in sorted(self.tags.keys()):
+            ET.SubElement(element, "tag", {"k": key, "v": self.tags[key]})
         return element
 
 
@@ -1849,10 +1849,10 @@ class OSMPrimitive(OSMElement):
     @property
     def version(self):
         """ version of node/way/relation """
-        return self.attrib.get("version")
+        return self.attribs.get("version")
 
-    def __init__(self, attrib={}, tag={}):
-        OSMElement.__init__(self, attrib, tag)
+    def __init__(self, attribs={}, tags={}):
+        OSMElement.__init__(self, attribs, tags)
         self.history = {}
         if self.version is not None:
             self.history[self.version] = self
@@ -1904,21 +1904,21 @@ class Node(OSMPrimitive):
         """
         if not ET.iselement(data):
             data = XML(data)
-        attrib = cls.parse_attribs(data)
-        tag = cls.parse_tags(data)
-        return cls(attrib, tag)
+        attribs = cls.parse_attribs(data)
+        tags = cls.parse_tags(data)
+        return cls(attribs, tags)
 
-    def __init__(self, attrib={}, tag={}):
-        OSMPrimitive.__init__(self, attrib, tag)
+    def __init__(self, attribs={}, tags={}):
+        OSMPrimitive.__init__(self, attribs, tags)
         if self.id is None:
             # Automatically asign id
             self.__class__._counter -= 1
-            self.attrib["id"] = self.__class__._counter
+            self.attribs["id"] = self.__class__._counter
 
     def __eq__(self, other):
         if not isinstance(other, Node):
             return NotImplemented
-        return self.id == other.id and self.version == other.version and self.tag == other.tag and self.lat == other.lat and self.lon == other.lon
+        return self.id == other.id and self.version == other.version and self.tags == other.tags and self.lat == other.lat and self.lon == other.lon
 
     def __ne__(self, other):
         if not isinstance(other, Node):
@@ -1927,19 +1927,19 @@ class Node(OSMPrimitive):
 
     @property
     def lat(self):
-        return self.attrib.get("lat")
+        return self.attribs.get("lat")
 
     @lat.setter
     def lat(self, value):
-        self.attrib["lat"] = float(value)
+        self.attribs["lat"] = float(value)
 
     @property
     def lon(self):
-        return self.attrib.get("lon")
+        return self.attribs.get("lon")
 
     @lon.setter
     def lon(self, value):
-        self.attrib["lon"] = float(value)
+        self.attribs["lon"] = float(value)
 
 
 class Way(OSMPrimitive):
@@ -1957,7 +1957,7 @@ class Way(OSMPrimitive):
 
     Attributes:
         xml_tag     --- XML tag of the element.
-        nd          --- List of node ids of the way.
+        nds         --- List of node ids of the way.
 
     Methods:
         to_xml      --- Get ET.Element representation of wrapper.
@@ -1978,10 +1978,10 @@ class Way(OSMPrimitive):
         """
         if not ET.iselement(data):
             data = XML(data)
-        attrib = cls.parse_attribs(data)
-        tag = cls.parse_tags(data)
-        nd = cls.parse_nds(data)
-        return cls(attrib, tag, nd)
+        attribs = cls.parse_attribs(data)
+        tags = cls.parse_tags(data)
+        nds = cls.parse_nds(data)
+        return cls(attribs, tags, nds)
 
     @classmethod
     def parse_nds(cls, element):
@@ -1997,18 +1997,18 @@ class Way(OSMPrimitive):
             nds.append(int(nd.attrib["ref"]))
         return nds
 
-    def __init__(self, attrib={}, tag={}, nd=()):
-        OSMPrimitive.__init__(self, attrib, tag)
-        self.nd = list(nd)
+    def __init__(self, attribs={}, tags={}, nds=()):
+        OSMPrimitive.__init__(self, attribs, tags)
+        self.nds = list(nds)
         if self.id is None:
             # Automatically asign id
             self.__class__._counter -= 1
-            self.attrib["id"] = self.__class__._counter
+            self.attribs["id"] = self.__class__._counter
 
     def __eq__(self, other):
         if not isinstance(other, Way):
             return NotImplemented
-        return self.id == other.id and self.version == other.version and self.tag == other.tag and self.nd == other.nd
+        return self.id == other.id and self.version == other.version and self.tags == other.tags and self.nds == other.nds
 
     def __ne__(self, other):
         if not isinstance(other, Way):
@@ -2018,7 +2018,7 @@ class Way(OSMPrimitive):
     def __contains__(self, item):
         if not isinstance(item, Node):
             raise NotImplementedError
-        return item.id in self.nd
+        return item.id in self.nds
 
     def to_xml(self, strip=()):
         """
@@ -2029,7 +2029,7 @@ class Way(OSMPrimitive):
 
         """
         element = OSMPrimitive.to_xml(self, strip=strip)
-        for nd in self.nd:
+        for nd in self.nds:
             ET.SubElement(element, "nd", {"ref": str(nd)})
         return element
 
@@ -2049,7 +2049,7 @@ class Relation(OSMPrimitive):
 
     Attributes:
         xml_tag         --- XML tag of the element.
-        member          --- List of relation members.
+        members         --- List of relation members.
 
     Methods:
         to_xml          --- Get ET.Element representation of wrapper.
@@ -2070,10 +2070,10 @@ class Relation(OSMPrimitive):
         """
         if not ET.iselement(data):
             data = XML(data)
-        attrib = cls.parse_attribs(data)
-        tag = cls.parse_tags(data)
-        member = cls.parse_members(data)
-        return cls(attrib, tag, member)
+        attribs = cls.parse_attribs(data)
+        tags = cls.parse_tags(data)
+        members = cls.parse_members(data)
+        return cls(attribs, tags, members)
 
     @classmethod
     def parse_members(cls, element):
@@ -2089,18 +2089,18 @@ class Relation(OSMPrimitive):
             members.append(cls.parse_attribs(member))
         return members
 
-    def __init__(self, attrib={}, tag={}, member=()):
-        OSMPrimitive.__init__(self, attrib, tag)
-        self.member = list(member)
+    def __init__(self, attribs={}, tags={}, members=()):
+        OSMPrimitive.__init__(self, attribs, tags)
+        self.members = list(members)
         if self.id is None:
             # Automatically asign id
             self.__class__._counter -= 1
-            self.attrib["id"] = self.__class__._counter
+            self.attribs["id"] = self.__class__._counter
 
     def __eq__(self, other):
         if not isinstance(other, Relation):
             return NotImplemented
-        return self.id == other.id and self.version == other.version and self.tag == other.tag and self.member == other.member
+        return self.id == other.id and self.version == other.version and self.tags == other.tags and self.members == other.members
 
     def __ne__(self, other):
         if not isinstance(other, Relation):
@@ -2110,8 +2110,8 @@ class Relation(OSMPrimitive):
     def __contains__(self, item):
         if not isinstance(item, (Node, Way, Relation)):
             raise NotImplementedError
-        for member in self.member:
-            if member["type"] == item.tag and memeber["ref"] == item.id:
+        for member in self.members:
+            if member["type"] == item.xml_tag and member["ref"] == item.id:
                 return True
         return False
 
@@ -2125,8 +2125,8 @@ class Relation(OSMPrimitive):
         """
         element = OSMPrimitive.to_xml(self, strip=strip)
         for member in self.member:
-            attrib = self.unparse_attribs(member, strip=strip)
-            ET.SubElement(element, "member", attrib)
+            attribs = self.unparse_attribs(member, strip=strip)
+            ET.SubElement(element, "member", attribs)
         return element
 
 
@@ -2155,9 +2155,9 @@ class Changeset(OSMElement):
         """
         if not ET.iselement(data):
             data = XML(data)
-        attrib = cls.parse_attribs(data)
-        tag = cls.parse_tags(data)
-        return cls(attrib, tag)
+        attribs = cls.parse_attribs(data)
+        tags = cls.parse_tags(data)
+        return cls(attribs, tags)
 
 
 class OSM(XMLElement, XMLFile, MutableSet):
@@ -2165,15 +2165,18 @@ class OSM(XMLElement, XMLFile, MutableSet):
     OSM XML document wrapper. Essentially a mutable set of Node, Way, Relation wrappers.
 
     Class methods:
-        from_xml        --- Create OSM XML document wrapper from XML representation.
+        from_xml    --- Create OSM XML document wrapper from XML representation.
 
     Attributes:
-        node        --- Dictionary of nodes {nodeId: Node}.
-        way         --- Dictionary of ways {wayId: Way}.
-        relation    --- Dictionary of relations {relationId: Relation}.
+        nodes       --- Dictionary of nodes {nodeId: Node}.
+        ways        --- Dictionary of ways {wayId: Way}.
+        relations   --- Dictionary of relations {relationId: Relation}.
 
     Methods:
-        to_xml          --- Get ET.Element representation of wrapper.
+        to_xml      --- Get ET.Element representation of wrapper.
+        node        --- Retrieve Node wrapper by id or None.
+        way         --- Retrieve Way wrapper by id or None.
+        relation    --- Retrieve Relation wrapper by id or None.
 
     """
 
@@ -2199,35 +2202,35 @@ class OSM(XMLElement, XMLFile, MutableSet):
         return cls(chain(containers["node"].values(), containers["way"].values(), containers["relation"].values()))
 
     def __init__(self, items=()):
-        self.node = {}
-        self.way = {}
-        self.relation = {}
+        self.nodes = {}
+        self.ways = {}
+        self.relations = {}
         for item in items:
             self.add(item)
 
     def __len__(self):
-        return len(self.node) + len(self.way) + len(self.relation)
+        return len(self.nodes) + len(self.ways) + len(self.relations)
 
     def __iter__(self):
-        return chain(self.node.values(), self.way.values(), self.relation.values())
+        return chain(self.nodes.values(), self.ways.values(), self.relations.values())
 
     def __contains__(self, item):
         if not isinstance(item, (Node, Way, Relation)):
             raise NotImplementedError
-        for container, cls in ((self.node, Node), (self.way, Way), (self.relation, Relation)):
+        for container, cls in ((self.nodes, Node), (self.ways, Way), (self.relations, Relation)):
             if isinstance(item, cls):
                 return container.get(item.id) == item
         return False
 
     def add(self, item):
-        for container, cls in ((self.node, Node), (self.way, Way), (self.relation, Relation)):
+        for container, cls in ((self.nodes, Node), (self.ways, Way), (self.relations, Relation)):
             if isinstance(item, cls):
                 container[item.id] = item
                 return
         raise ValueError("Only Node, Way, Relation instances are allowed.")
 
     def discard(self, item):
-        for container, cls in ((self.node, Node), (self.way, Way), (self.relation, Relation)):
+        for container, cls in ((self.nodes, Node), (self.ways, Way), (self.relations, Relation)):
             if isinstance(item, cls):
                 container.pop(item.id, None)
                 return
@@ -2238,7 +2241,7 @@ class OSM(XMLElement, XMLFile, MutableSet):
         Get ET.Element representation of wrapper.
 
         Keyworded arguments:
-            strip       --- Attributes that should be filtered out.
+            strip   --- Attributes that should be filtered out.
 
         """
         element = ET.Element("osm", {"version": str(API.version), "generator": "osmapis"})
@@ -2246,14 +2249,44 @@ class OSM(XMLElement, XMLFile, MutableSet):
             element.append(child.to_xml(strip=strip))
         return element
 
+    def node(self, id_):
+        """
+        Retrieve Node wrapper by id or None.
+
+        Arguments:
+            id_     --- Id of the Node wrapper.
+
+        """
+        return self.nodes.get(id_)
+
+    def way(self, id_):
+        """
+        Retrieve Way wrapper by id or None.
+
+        Arguments:
+            id_     --- Id of the Way wrapper.
+
+        """
+        return self.ways.get(id_)
+
+    def relation(self, id_):
+        """
+        Retrieve Relation wrapper by id or None.
+
+        Arguments:
+            id_     --- Id of the Relation wrapper.
+
+        """
+        return self.relations.get(id_)
+
 
 class OSC(XMLElement, XMLFile):
     """
     OSC XML document wrapper.
 
     Class methods:
-        from_diff       --- Create OSC XML document wrapper by diffing two OSM instances.
-        from_xml        --- Create OSC XML document wrapper from XML representation.
+        from_diff   --- Create OSC XML document wrapper by diffing two OSM instances.
+        from_xml    --- Create OSC XML document wrapper from XML representation.
 
     Attributes:
         create      --- OSM instance containing elements to create.
@@ -2261,7 +2294,7 @@ class OSC(XMLElement, XMLFile):
         delete      --- OSM instance containing elements to delete.
 
     Methods:
-        to_xml          --- Get ET.Element representation of wrapper.
+        to_xml      --- Get ET.Element representation of wrapper.
 
     """
 
@@ -2281,8 +2314,8 @@ class OSC(XMLElement, XMLFile):
         modify = set()
         delete = set()
         for type_ in ("node", "way", "relation"):
-            parent_elements = getattr(parent, type_)
-            child_elements = getattr(child, type_)
+            parent_elements = getattr(parent, type_ + "s")
+            child_elements = getattr(child, type_ + "s")
             for id_ in set(child_elements.keys()) | set(parent_elements.keys()):
                 if id_ not in child_elements:
                     delete.add(parent_elements[id_])

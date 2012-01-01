@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+    [CHG] Use plural forms for list and dict attributes.
     [ADD] Save/load into/from OSM and OSC wrappers.
     [ADD] Allow usage of customized wrapper classes.
     [CHG] Remove OverpassAPI caching, since it seems unnecessary.
