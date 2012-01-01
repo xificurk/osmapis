@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+    [ADD] Allow usage of customized wrapper classes.
     [CHG] Remove OverpassAPI caching, since it seems unnecessary.
     [CHG] Rename the module to osmapis.
     [ADD] Create OSC instance by diffing two OSM instances.
