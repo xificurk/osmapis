@@ -1896,7 +1896,7 @@ class Node(OSMPrimitive):
 
         """
         if not ET.iselement(data):
-            data = XML(data)
+            data = ET.XML(data)
         attribs = cls.parse_attribs(data)
         tags = cls.parse_tags(data)
         return cls(attribs, tags)
@@ -1970,7 +1970,7 @@ class Way(OSMPrimitive):
 
         """
         if not ET.iselement(data):
-            data = XML(data)
+            data = ET.XML(data)
         attribs = cls.parse_attribs(data)
         tags = cls.parse_tags(data)
         nds = cls.parse_nds(data)
@@ -2062,7 +2062,7 @@ class Relation(OSMPrimitive):
 
         """
         if not ET.iselement(data):
-            data = XML(data)
+            data = ET.XML(data)
         attribs = cls.parse_attribs(data)
         tags = cls.parse_tags(data)
         members = cls.parse_members(data)
@@ -2147,7 +2147,7 @@ class Changeset(OSMElement):
 
         """
         if not ET.iselement(data):
-            data = XML(data)
+            data = ET.XML(data)
         attribs = cls.parse_attribs(data)
         tags = cls.parse_tags(data)
         return cls(attribs, tags)
