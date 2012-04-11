@@ -25,7 +25,7 @@ __author__ = "Petr Morávek (xificurk@gmail.com)"
 __copyright__ = "Copyright (C) 2010 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 from abc import ABCMeta, abstractmethod
 from base64 import b64encode
@@ -61,6 +61,13 @@ __all__ = ["wrappers",
 
 
 logging.getLogger('osmapis').addHandler(logging.NullHandler())
+
+# Python 2.x compatibility
+def abstractclass(cls):
+    d = dict(cls.__dict__)
+    d.pop("__dict__", None)
+    d.pop("__weakref__", None)
+    return ABCMeta(cls.__name__, cls.__bases__, d)
 
 
 ############################################################
@@ -158,6 +165,7 @@ class HTTPClient(object):
 ### API classes                                          ###
 ############################################################
 
+@abstractclass
 class BaseReadAPI(object):
     """
     Abstract class for read-only API operations.
@@ -187,7 +195,6 @@ class BaseReadAPI(object):
         get_rels            --- Download relations that reference the Node/Way/Relation wrapper.
 
     """
-    __metaclass_ = ABCMeta
 
     @abstractmethod
     def get_bbox(self, left, bottom, right, top):
@@ -467,6 +474,7 @@ class BaseReadAPI(object):
         raise NotImplementedError
 
 
+@abstractclass
 class BaseWriteAPI(object):
     """
     Abstract class for write API operations.
@@ -493,7 +501,6 @@ class BaseWriteAPI(object):
         delete_relations    --- Delete relations by ids.
 
     """
-    __metaclass_ = ABCMeta
 
     @abstractmethod
     def upload_diff(self, osc, changeset=None):
@@ -1627,6 +1634,7 @@ class API(BaseReadAPI, BaseWriteAPI):
 ### Wrappers for OSM Elements and documents.             ###
 ############################################################
 
+@abstractclass
 class XMLFile(object):
     """
     Abstract wrapper for XML Elements.
@@ -1642,8 +1650,6 @@ class XMLFile(object):
         save            --- Save the wrapper into file.
 
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def from_xml(cls, data):
@@ -1692,6 +1698,7 @@ class XMLFile(object):
             return cls.from_xml(fp.read())
 
 
+@abstractclass
 class XMLElement(object):
     """
     Abstract wrapper for XML Elements.
@@ -1706,8 +1713,6 @@ class XMLElement(object):
                             filtering out some attributes.
 
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def to_xml(self, strip=()):
