@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Osmapis is a set of tools for accessing and manipulating OSM data via OSM API,
-Overpass API, Quick History Service.
+Overpass API.
 
 Variables:
     wrappers        --- Dictionary containing the classes to use for OSM element wrappers.
 
 Classes:
-    QHS             --- Quick History Service interface.
     OverpassAPI     --- OSM Overpass API interface.
     API             --- OSM API interface.
     HTTPClient      --- Interface for accessing data over HTTP.
@@ -47,7 +46,6 @@ except ImportError:
 
 
 __all__ = ["wrappers",
-           "QHS",
            "OverpassAPI",
            "API",
            "HTTPClient",
@@ -779,89 +777,6 @@ class BaseWriteAPI(object):
 
         """
         return self.delete_elements("relation", ids, changeset)
-
-
-
-class QHS(object):
-    """
-    Quick History Service interface.
-
-    Attributes:
-        http        --- Interface for accessing data over HTTP.
-        server      --- Domain name of QHS.
-        basepath    --- Path to the API on the server.
-        version     --- Version of OSM API.
-
-    Methods:
-        request     --- Low-level method to retrieve data from server.
-        problems    --- Check licensing problems.
-
-    """
-
-    http = HTTPClient
-    version = 0.6
-    server = "wtfe.gryph.de"
-    basepath = "/api/{}/".format(version)
-
-    def request(self, path, data):
-        """
-        Low-level method to retrieve data from server.
-
-        Arguments:
-            path        --- Currently only 'problems'.
-            data        --- Data to send with the request.
-
-        """
-        path = "{}{}".format(self.basepath, path)
-        payload = urlencode(data)
-        return self.http.request(self.server, path, method="POST", payload=payload)
-
-    def problems(self, element):
-        """
-        Check licensing problems.
-
-        Returns the same type of object as passed in element argument. Adds
-        odbl_problems attribute to each Node, Way and Relation wrapper that
-        contains found problems, or None.
-
-        Arguments:
-            element     --- Data to check - Node, Way, Relation, or OSM wrapper.
-
-        """
-        if isinstance(element, (Node, Way, Relation)):
-            query = {"{}s".format(element.xml_tag): element.id}
-        elif isinstance(element, OSM):
-            query = {}
-            for type_ in ("nodes", "ways", "relations"):
-                query[type_] = ",".join(str(id_) for id_ in getattr(element, type_).keys())
-        else:
-            raise TypeError("Element must be a Node, Way, Relation or OSM instance.")
-
-        result = self.request("problems", query)
-        result = self._parse_problems(result)
-        if isinstance(element, (Node, Way, Relation)):
-            try:
-                element.odbl_problems = result[element.xml_tag][element.id]
-            except KeyError:
-                element.odbl_problems = None
-        else:
-            for child in element:
-                try:
-                    child.odbl_problems = result[child.xml_tag][child.id]
-                except KeyError:
-                    child.odbl_problems = None
-        return element
-
-    def _parse_problems(self, data):
-        data = ET.XML(data)
-        result = {"node": {}, "way": {}, "relation": {}}
-        for type_, container in result.items():
-            for element in data.findall(type_):
-                problems = []
-                for user in element.findall("user"):
-                    problems.append(dict(user.attrib))
-                container[int(element.attrib["id"])] = problems
-        return result
 
 
 class OverpassAPI(BaseReadAPI):

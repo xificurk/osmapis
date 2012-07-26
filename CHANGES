@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+    [CHG] Remove Quick History Service support, redaction's done!
     [FIX] Make the use of abc compatible across Python 2.x and 3.x.
 
 Release 0.8.0 (2012-02-15)
