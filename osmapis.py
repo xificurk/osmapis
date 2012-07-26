@@ -76,10 +76,10 @@ class HTTPClient(object):
     """
     Interface for accessing data over HTTP.
 
-    Attributes:
+    Class attributes:
         headers     --- Default headers for HTTP request.
 
-    Methods:
+    Class methods:
         request     --- Perform HTTP request and handle possible redirection, on error retry.
 
     """
@@ -785,7 +785,7 @@ class OverpassAPI(BaseReadAPI):
 
     Read calls are mostly compatible with standard API.
 
-    Attributes:
+    Class attributes:
         http        --- Interface for accessing data over HTTP.
         server      --- Domain name of OSM Overpass API.
         basepath    --- Path to the API on the server.
@@ -971,17 +971,17 @@ class API(BaseReadAPI, BaseWriteAPI):
     """
     OSM API interface.
 
-    Properties:
-        capabilities    --- OSM API capabilities.
-
-    Attributes:
+    Class attributes:
         http            --- Interface for accessing data over HTTP.
         server          --- Domain name of OSM API.
         basepath        --- Path to the API on the server.
         version         --- Version of OSM API.
+
+    Attributes:
         username        --- Username for API authentication
         password        --- Password for API authentication.
         auto_changeset  --- Dictionary with configuration of automatic changeset creation.
+        capabilities    --- OSM API capabilities, read-only.
 
     Methods:
         request             --- Low-level method to retrieve data from server.
@@ -1588,18 +1588,6 @@ class XMLFile(object):
         """
         raise NotImplementedError
 
-    def save(self, filename):
-        """
-        Save the wrapper into file.
-
-        Arguments:
-            filename        --- Filename where to save the wrapper.
-
-        """
-        with open(filename, "w") as fp:
-            fp.write('<?xml version="1.0" encoding="UTF-8"?>')
-            fp.write(ET.tostring(self.to_xml(), encoding="utf-8"))
-
     @classmethod
     def load(cls, filename):
         """
@@ -1611,6 +1599,18 @@ class XMLFile(object):
         """
         with open(filename) as fp:
             return cls.from_xml(fp.read())
+
+    def save(self, filename):
+        """
+        Save the wrapper into file.
+
+        Arguments:
+            filename        --- Filename where to save the wrapper.
+
+        """
+        with open(filename, "w") as fp:
+            fp.write('<?xml version="1.0" encoding="UTF-8"?>')
+            fp.write(ET.tostring(self.to_xml(), encoding="utf-8"))
 
 
 @abstractclass
@@ -1692,10 +1692,8 @@ class OSMElement(XMLElement):
     Class methods:
         parse_tags  --- Extract tags from ET.Element.
 
-    Properties:
-        id          --- Id of wrapper, read-only.
-
     Attributes:
+        id          --- Id of wrapper, read-only.
         attribs     --- Attributes of wrapper.
         tags        --- Tags of wrapper.
 
@@ -1748,10 +1746,8 @@ class OSMPrimitive(OSMElement):
     """
     Abstract wrapper for node, way and relation.
 
-    Properties:
-        version     --- Version of node/way/relation, read-only.
-
     Attributes:
+        version     --- Version of node/way/relation, read-only.
         history     --- Dictionary containing old versions of node/way/relation.
 
     Methods:
@@ -1793,13 +1789,15 @@ class Node(OSMPrimitive):
         Node == Node
         Node != Node
 
-    Attributes:
+    Class attributes:
         xml_tag     --- XML tag of the element.
-        lat         --- Latitude of the node.
-        lon         --- Longitude of the node.
 
     Class methods:
         from_xml    --- Create Node wrapper from XML representation.
+
+    Attributes:
+        lat         --- Latitude of the node.
+        lon         --- Longitude of the node.
 
     """
 
@@ -1821,6 +1819,22 @@ class Node(OSMPrimitive):
         tags = cls.parse_tags(data)
         return cls(attribs, tags)
 
+    @property
+    def lat(self):
+        return self.attribs.get("lat")
+
+    @lat.setter
+    def lat(self, value):
+        self.attribs["lat"] = float(value)
+
+    @property
+    def lon(self):
+        return self.attribs.get("lon")
+
+    @lon.setter
+    def lon(self, value):
+        self.attribs["lon"] = float(value)
+
     def __init__(self, attribs={}, tags={}):
         OSMPrimitive.__init__(self, attribs, tags)
         if self.id is None:
@@ -1838,22 +1852,6 @@ class Node(OSMPrimitive):
             return NotImplemented
         return not self.__eq__(other)
 
-    @property
-    def lat(self):
-        return self.attribs.get("lat")
-
-    @lat.setter
-    def lat(self, value):
-        self.attribs["lat"] = float(value)
-
-    @property
-    def lon(self):
-        return self.attribs.get("lon")
-
-    @lon.setter
-    def lon(self, value):
-        self.attribs["lon"] = float(value)
-
 
 class Way(OSMPrimitive):
     """
@@ -1864,12 +1862,14 @@ class Way(OSMPrimitive):
         Way != Way
         Node in Way
 
+    Class attributes:
+        xml_tag     --- XML tag of the element.
+
     Class methods:
         from_xml    --- Create Way wrapper from XML representation.
         parse_nds   --- Extract list of node ids of the way from ET.Element.
 
     Attributes:
-        xml_tag     --- XML tag of the element.
         nds         --- List of node ids of the way.
 
     Methods:
@@ -1956,12 +1956,14 @@ class Relation(OSMPrimitive):
         Relation != Relation
         Node in Relation, Way in Relation, Relation in Relation
 
+    Class attributes:
+        xml_tag         --- XML tag of the element.
+
     Class methods:
         from_xml        --- Create Relation wrapper from XML representation.
         parse_members   --- Extract list of members of the relation from ET.Element.
 
     Attributes:
-        xml_tag         --- XML tag of the element.
         members         --- List of relation members.
 
     Methods:
@@ -2047,11 +2049,11 @@ class Changeset(OSMElement):
     """
     Changeset wrapper.
 
+    Class attributes:
+        xml_tag         --- XML tag of the element.
+
     Class methods:
         from_xml        --- Create Changeset wrapper from XML representation.
-
-    Attributes:
-        xml_tag         --- XML tag of the element.
 
     """
 
