@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+Release 0.8.0 (2012-07-27)
     [CHG] Improve error reporting.
     [CHG] Allow multiple create/modify/delete sections in one OSC. This
           inevitably breaks backward compatibility.
