@@ -1541,7 +1541,7 @@ class API(BaseReadAPI, BaseWriteAPI):
         delete = []
         for element in self.get_elements(type_, ids):
             delete.append(self.delete_element(element, changeset))
-        return wrappers["osc"](delete=delete)
+        return wrappers["osc"](("delete", delete))
 
 
 
@@ -2242,12 +2242,17 @@ class OSC(XMLElement, XMLFile):
         from_xml    --- Create OSC XML document wrapper from XML representation.
 
     Attributes:
-        create      --- OSM instance containing elements to create.
-        modify      --- OSM instance containing elements to modify.
-        delete      --- OSM instance containing elements to delete.
+        sections    --- List of tuples (action, OSM instance), where action is
+                        one of create, modify, delete.
 
     Methods:
         to_xml      --- Get ET.Element representation of wrapper.
+        create      --- Add new create section (unless the last one is create)
+                        and add to it the specified element.
+        modify      --- Add new modify section (unless the last one is modify)
+                        and add to it the specified element.
+        delete      --- Add new delete section (unless the last one is delete)
+                        and add to it the specified element.
 
     """
 
@@ -2276,7 +2281,14 @@ class OSC(XMLElement, XMLFile):
                     create.add(child_elements[id_])
                 elif parent_elements[id_] != child_elements[id_]:
                     modify.add(child_elements[id_])
-        return cls(create, modify, delete)
+        sections = []
+        if len(create) > 0:
+            sections.append(("create", create))
+        if len(modify) > 0:
+            sections.append(("modify", modify))
+        if len(delete) > 0:
+            sections.append(("delete", delete))
+        return cls(*sections)
 
     @classmethod
     def from_xml(cls, data):
@@ -2289,18 +2301,23 @@ class OSC(XMLElement, XMLFile):
         """
         if not ET.iselement(data):
             data = ET.XML(data)
-        create = wrappers["osm"]()
-        modify = wrappers["osm"]()
-        delete = wrappers["osm"]()
-        for elem_name, container in (("create", create), ("modify", modify), ("delete", delete)):
-            for element in data.findall(elem_name):
-                container |= wrappers["osm"].from_xml(element)
-        return cls(create, modify, delete)
+        sections = []
+        for section in data:
+            sections.append((section.tag, wrappers["osm"].from_xml(section)))
+        return cls(*sections)
 
-    def __init__(self, create=(), modify=(), delete=()):
-        self.create = wrappers["osm"](create)
-        self.modify = wrappers["osm"](modify)
-        self.delete = wrappers["osm"](delete)
+    def __init__(self, *sections):
+        """
+        Arguments:
+            *sections   --- Arbitrary number of tuples (action, elements).
+
+        """
+        self.sections = []
+        for section in sections:
+            action, elements = tuple(section)
+            if action not in ("create", "modify", "delete"):
+                raise ValueError("Unexpected action {!r}.".format(action))
+            self.sections.append((action, wrappers["osm"](elements)))
 
     def to_xml(self, strip=()):
         """
@@ -2310,14 +2327,54 @@ class OSC(XMLElement, XMLFile):
             strip       --- Attributes that should be filtered out.
 
         """
-        element = ET.Element("osmChange", {"version":str(API.version), "generator":"osmapis"})
-        for action in ("create", "modify", "delete"):
-            action_element = getattr(self, action).to_xml(strip=strip)
-            if len(action_element.getchildren()) > 0:
-                action_element.tag = action
-                action_element.attrib = {}
-                element.append(action_element)
+        element = ET.Element("osmChange", {"version": str(API.version), "generator": "osmapis"})
+        for action, container in self.sections:
+            section = container.to_xml(strip=strip)
+            if len(section) > 0:
+                section.tag = action
+                section.attrib = {}
+                element.append(section)
         return element
+
+    def create(self, element):
+        """
+        Add new create section (unless the last one is create) and add to it
+        the specified element.
+
+        Arguments:
+            element     --- OSM element wrapper to create.
+
+        """
+        if len(self.sections) == 0 or self.sections[-1][0] != "create":
+            self.sections.append(("create", wrappers["osm"]()))
+        self.sections[-1][1].add(element)
+
+    def modify(self, element):
+        """
+        Add new modify section (unless the last one is modify) and add to it
+        the specified element.
+
+        Arguments:
+            element     --- OSM element wrapper to modify.
+
+        """
+        if len(self.sections) == 0 or self.sections[-1][0] != "modify":
+            self.sections.append(("modify", wrappers["osm"]()))
+        self.sections[-1][1].add(element)
+
+    def delete(self, element):
+        """
+        Add new delete section (unless the last one is delete) and add to it
+        the specified element.
+
+        Arguments:
+            element     --- OSM element wrapper to delete.
+
+        """
+        if len(self.sections) == 0 or self.sections[-1][0] != "delete":
+            self.sections.append(("delete", wrappers["osm"]()))
+        self.sections[-1][1].add(element)
+
 
 """
 Dictionary containing the classes to use for OSM element wrappers.

@@ -1,6 +1,8 @@
 CHANGES
 ============================================================================
 
+    [CHG] Allow multiple create/modify/delete sections in one OSC. This
+          inevitably breaks backward compatibility.
     [CHG] Files saved by osmapis are now pretty formatted.
     [ADD] Support for __str__ method in XMLElement classes, which returns pretty
           formatted XML string.
