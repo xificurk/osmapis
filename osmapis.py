@@ -1557,6 +1557,7 @@ class XMLFile(object):
     Abstract methods:
         to_xml          --- Get ET.Element representation of wrapper.
         from_xml        --- Create wrapper from XML representation.
+        __str__         --- Return formatted XML string.
 
     Class methods:
         load            --- Load the wrapper from file.
@@ -1588,6 +1589,14 @@ class XMLFile(object):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def __str__(self):
+        """
+        Return formatted XML string.
+
+        """
+        raise NotImplementedError
+
     @classmethod
     def load(cls, filename):
         """
@@ -1597,7 +1606,7 @@ class XMLFile(object):
             filename        --- Filename from where to load the wrapper.
 
         """
-        with open(filename) as fp:
+        with open(filename, "rb") as fp:
             return cls.from_xml(fp.read())
 
     def save(self, filename):
@@ -1608,9 +1617,12 @@ class XMLFile(object):
             filename        --- Filename where to save the wrapper.
 
         """
-        with open(filename, "w") as fp:
-            fp.write('<?xml version="1.0" encoding="UTF-8"?>')
-            fp.write(ET.tostring(self.to_xml(), encoding="utf-8"))
+        with open(filename, "wb") as fp:
+            fp.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n".encode("utf-8"))
+            s = str(self)
+            if not isinstance(s, bytes):
+                s = s.encode("utf-8")
+            fp.write(s)
 
 
 @abstractclass
@@ -1626,6 +1638,9 @@ class XMLElement(object):
                             to appropriate types.
         unparse_attribs --- Convert attribute values to strings, optionally
                             filtering out some attributes.
+
+    Methods:
+        __str__         --- Return formatted pretty formatted XML string.
 
     """
 
@@ -1683,6 +1698,29 @@ class XMLElement(object):
             else:
                 attribs[key] = value
         return attribs
+
+    def _indent(self, element, level=0):
+        indent = "\n" + level * "\t"
+        if len(element) > 0:
+            element.text = indent + "\t"
+            element.tail = indent
+            for child in element:
+                self._indent(child, level+1)
+            child.tail = indent
+        elif level > 0:
+            element.tail = indent
+
+    def __str__(self):
+        """
+        Return formatted pretty formatted XML string.
+
+        """
+        element = self.to_xml()
+        self._indent(element)
+        res = ET.tostring(element, encoding="utf-8")
+        if not isinstance(res, str):
+            res = res.decode(encoding="utf-8")
+        return res
 
 
 class OSMElement(XMLElement):

@@ -1,6 +1,9 @@
 CHANGES
 ============================================================================
 
+    [CHG] Files saved by osmapis are now pretty formatted.
+    [ADD] Support for __str__ method in XMLElement classes, which returns pretty
+          formatted XML string.
     [CHG] Remove Quick History Service support, redaction's done!
     [FIX] Make the use of abc compatible across Python 2.x and 3.x.
 
