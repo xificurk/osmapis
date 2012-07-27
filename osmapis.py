@@ -141,15 +141,19 @@ class HTTPClient(object):
             return cls.request(server, path, method=method, headers=headers, payload=payload, retry=retry)
         elif 400 <= response.status < 500:
             body = response.read().decode("utf-8", "replace").strip()
+            if not isinstance(body, str):
+                body = body.encode("utf-8")
             connection.close()
             cls.log.error("Got error {} ({}).".format(response.reason, response.status))
-            raise APIError(body, payload)
+            raise APIError(body, payload, response.reason, response.status)
         else:
             body = response.read().decode("utf-8", "replace").strip()
+            if not isinstance(body, str):
+                body = body.encode("utf-8")
             connection.close()
             if retry <= 0:
                 cls.log.error("Could not download {}{}".format(server, path))
-                raise APIError("Got error {} ({}).".format(response.reason, response.status), payload)
+                raise APIError(body, payload, response.reason, response.status)
             else:
                 wait = 30
                 cls.log.warn("Got error {} ({})... will retry in {} seconds.".format(response.status, response.reason, wait))
@@ -2402,15 +2406,27 @@ class APIError(Exception):
 
     """
 
-    def __init__(self, reason, payload):
+    def __init__(self, reason, payload, http_reason=None, http_status=None):
         """
         Arguments:
             reason      --- The reason of failure.
             payload     --- Data sent to API with request.
 
+        Keyworded arguments:
+            http_reason --- Optional reason for HTTP error.
+            http_status --- Optional status code for HTTP error.
+
         """
         self.reason = reason
         self.payload = payload
+        self.http_reason = http_reason
+        self.http_status = http_status
 
     def __str__(self):
-        return "Request failed: {}".format(self.reason)
+        if None in (self.http_reason, self.http_status):
+            msg = "Request failed: {}".format(self.reason)
+        else:
+            msg = "HTTP error {} ({}).".format(self.http_status, self.http_reason)
+            if len(self.reason) > 0:
+                msg += " " + self.reason
+        return msg

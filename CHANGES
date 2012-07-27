@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+    [CHG] Improve error reporting.
     [CHG] Allow multiple create/modify/delete sections in one OSC. This
           inevitably breaks backward compatibility.
     [CHG] Files saved by osmapis are now pretty formatted.
