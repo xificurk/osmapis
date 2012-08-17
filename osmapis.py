@@ -20,11 +20,11 @@ Classes:
 
 """
 
-__author__ = "Petr Morávek (xificurk@gmail.com)"
+__author__ = "Petr Morávek (petr@pada.cz)"
 __copyright__ = "Copyright (C) 2010-2012 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 from abc import ABCMeta, abstractmethod
 from base64 import b64encode
@@ -1098,7 +1098,10 @@ class API(BaseReadAPI, BaseWriteAPI):
                 if main_tag_only:
                     for child in element:
                         element.remove(child)
-        return ET.tostring(payload, encoding="utf-8")
+        payload = ET.tostring(payload, encoding="utf-8")
+        if not isinstance(payload, str):
+            payload = payload.decode("utf-8")
+        return payload
 
     ##################################################
     # HTTP methods                                   #
@@ -1268,7 +1271,10 @@ class API(BaseReadAPI, BaseWriteAPI):
             changeset = wrappers["changeset"](tags=tags)
         elif not isinstance(changeset, Changeset):
             raise TypeError("Changeset must be Changeset instance or None.")
-        payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml(), encoding="utf-8"))
+        payload = ET.tostring(changeset.to_xml(), encoding="utf-8")
+        if not isinstance(payload, str):
+            payload = payload.decode("utf-8")
+        payload = "<osm>{}</osm>".format(payload)
         path = "changeset/create"
         changeset.attribs["id"] = int(self.put(path, payload))
         return changeset
@@ -1285,7 +1291,10 @@ class API(BaseReadAPI, BaseWriteAPI):
         """
         if not isinstance(changeset, Changeset):
             raise TypeError("Changeset must be Changeset instance.")
-        payload = "<osm>{}</osm>".format(ET.tostring(changeset.to_xml(), encoding="utf-8"))
+        payload = ET.tostring(changeset.to_xml(), encoding="utf-8")
+        if not isinstance(payload, str):
+            payload = payload.decode("utf-8")
+        payload = "<osm>{}</osm>".format(payload)
         path = "changeset/{}".format(changeset.id)
         return wrappers["changeset"].from_xml(ET.XML(self.put(path, payload)).find("changeset"))
 
@@ -1723,7 +1732,7 @@ class XMLElement(object):
         self._indent(element)
         res = ET.tostring(element, encoding="utf-8")
         if not isinstance(res, str):
-            res = res.decode(encoding="utf-8")
+            res = res.decode("utf-8")
         return res
 
 
