@@ -1,6 +1,8 @@
 CHANGES
 ============================================================================
 
+    [FIX] Fix bug in API.upload_diff result.
+
 Release 0.9.1 (2012-08-25)
     [FIX] Fix encoding in Python 3.
 

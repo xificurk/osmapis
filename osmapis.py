@@ -24,7 +24,7 @@ __author__ = "Petr Morávek (petr@pada.cz)"
 __copyright__ = "Copyright (C) 2010-2012 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 
 from abc import ABCMeta, abstractmethod
 from base64 import b64encode
@@ -1454,7 +1454,7 @@ class API(BaseReadAPI, BaseWriteAPI):
                 old_id = int(element.attrib["old_id"])
                 value[old_id] = {"old_id": old_id}
                 if "new_id" in element.attrib:
-                    value["new_id"] = int(element.attrib["new_id"])
+                    value[old_id]["new_id"] = int(element.attrib["new_id"])
                 if "new_version" in element.attrib:
                     value[old_id]["new_version"] = int(element.attrib["new_version"])
         return result
