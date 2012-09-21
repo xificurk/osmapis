@@ -915,12 +915,14 @@ class API(BaseReadAPI, BaseWriteAPI):
         server          --- Domain name of OSM API.
         basepath        --- Path to the API on the server.
         version         --- Version of OSM API.
+        changeset_tags  --- Default tags to use when creating changeset.
 
     Attributes:
         username        --- Username for API authentication
         password        --- Password for API authentication.
-        auto_changeset  --- Dictionary with configuration of automatic changeset creation.
         capabilities    --- OSM API capabilities, read-only.
+        changeset_autocreate --- Should we automagically create new changesets as needed?
+        changeset_maxsize --- Maximum size of automagically created changesets.
 
     Methods:
         request             --- Low-level method to retrieve data from server.
@@ -928,6 +930,9 @@ class API(BaseReadAPI, BaseWriteAPI):
         put                 --- Low-level method for PUT request.
         delete              --- Low-level method for DELETE request.
         post                --- Low-level method for POST request.
+
+        get_changeset_id    --- Return changeset id as string or raise Exception.
+        check_auto_changeset --- Check automagically created changeset and close it if needed.
 
         get_changeset       --- Download changeset by id.
         get_changeset_full  --- Download changeset contents by id.
@@ -960,41 +965,38 @@ class API(BaseReadAPI, BaseWriteAPI):
     version = 0.6
     server = "api.openstreetmap.org"
     basepath = "/api/{}/".format(version)
+    changeset_tags = {"created_by": "osmapis/{0}".format(__version__)}
 
-    def __init__(self, username="", password="", auto_changeset=None):
+    def __init__(self, username="", password="", changeset_autocreate=True, changeset_maxsize=1000, changeset_tags={}):
         """
         Keyworded arguments:
             username        --- Username for API authentication
             password        --- Password for API authentication
-            auto_changeset  --- Dictionary with configuration of automatic
-                                changeset creation:
-                                    'enabled' - Enable auto_changeset (boolean).
-                                    'size' - Maximum size of changeset (integer).
-                                    'tags' - Default tags (dictionary).
+            changeset_autocreate --- Should we automagically create new changesets as needed?
+            changeset_maxsize --- Maximum size of automagically creted changesets.
+            changeset_tags  --- Default tags to use when creating changeset.
 
         """
         self.username = username
         self.password = password
-        if not isinstance(auto_changeset, MutableMapping):
-            auto_changeset = {}
-        auto_changeset.setdefault("enabled", True)
-        auto_changeset.setdefault("size", 1000)
-        auto_changeset.setdefault("tags", {}).setdefault("created_by", "osmapis/{0}".format(__version__))
-        self.auto_changeset = auto_changeset
+        self.changeset_autocreate = bool(changeset_autocreate)
+        self.changeset_maxsize = int(changeset_maxsize)
+        self.changeset_tags = dict(self.changeset_tags)
+        self.changeset_tags.update(changeset_tags)
 
     def __del__(self):
-        self._auto_changeset_clear(force=True)
+        self.check_auto_changeset(close=True)
         return None
 
-    def _changeset_id(self, changeset=None):
+    def get_changeset_id(self, changeset=None):
         """
         Return changeset id as string or raise Exception.
 
-        If auto_changeset is enabled and no valid changeset or its id is passed,
-        return auto_changeset id (if necessary, create new one).
+        If changeset_autocreate is enabled and no valid changeset or its id is passed,
+        return automagic changeset id.
 
         Keyworded arguments:
-            changeset   --- Changeset wrapper or changeset id (integer).
+            changeset   --- Changeset wrapper, changeset id or None (use autocreate).
 
         """
         if isinstance(changeset, Changeset):
@@ -1004,24 +1006,28 @@ class API(BaseReadAPI, BaseWriteAPI):
                 raise ValueError("This changeset has no id.")
         elif isinstance(changeset, int):
             return str(changeset)
-        elif self.auto_changeset["enabled"]:
-            self._auto_changeset_clear()
+        elif self.changeset_autocreate:
+            self.check_auto_changeset()
             if self._changeset is None:
                 self._changeset = self.create_changeset()
                 self._changeset.counter = 0
             self._changeset.counter += 1
             return str(self._changeset.id)
         else:
-            raise TypeError("Auto_changeset is disabled and no valid changeset or its id was passed.")
+            raise TypeError("Automagic changeset creation is disabled and no valid changeset or its id was passed.")
 
-    def _auto_changeset_clear(self, force=False):
-        """ Check if the auto_changeset should be closed """
+    def check_auto_changeset(self, close=False):
+        """
+        Check automagically created changeset and close it if needed.
+
+        Changeset is closed, if close is True or it reached the maximum allowed size.
+
+        """
         if self._changeset is None:
-            return False
-        if force or self._changeset.counter >= self.auto_changeset["size"]:
+            return
+        if close or self._changeset.counter >= self.changeset_maxsize:
             self.close_changeset(self._changeset)
             self._changeset = None
-            return True
 
     def _format_payload(self, element, changeset_id, main_tag_only=False):
         """ Format payload data """
@@ -1178,8 +1184,7 @@ class API(BaseReadAPI, BaseWriteAPI):
                                 display_name, time, open, closed.
 
         """
-        params = "&".join(("{}={}".format(key, value) for key, value in params.items()))
-        path = "changesets?{}".format(params)
+        path = "changesets?{}".format(urlencode(params))
         data = self.get(path)
         result = []
         for element in ET.XML(self.get(path)).findall("changeset"):
@@ -1193,13 +1198,13 @@ class API(BaseReadAPI, BaseWriteAPI):
         Return Changeset wrapper.
 
         Keyworded arguments:
-            changeset   --- Changeset wrapper or None (create new).
-            comment     --- Comment tag.
+            changeset   --- Changeset wrapper or None (create new with changeset_tags).
+            comment     --- Comment tag to override default changeset_tags.
 
         """
         if changeset is None:
             # No Changset instance provided => create new one
-            tags = dict(self.auto_changeset["tags"])
+            tags = dict(self.changeset_tags)
             if comment is not None:
                 tags["comment"] = comment
             changeset = wrappers["changeset"](tags=tags)
@@ -1240,12 +1245,14 @@ class API(BaseReadAPI, BaseWriteAPI):
             changeset   --- Changeset wrapper or changeset id.
 
         """
-        # Temporarily disable auto_changeset
-        old = self.auto_changeset["enabled"]
-        self.auto_changeset["enabled"] = False
-        changeset_id = self._changeset_id(changeset)
-        self.auto_changeset["enabled"] = old
-        path = "changeset/{}/close".format(changeset_id)
+        if isinstance(changeset, Changeset):
+            if changeset.id is not None:
+                changeset = changeset.id
+            else:
+                raise ValueError("This changeset has no id.")
+        elif not isinstance(changeset, int):
+            raise TypeError("No valid changeset or its id was passed.")
+        path = "changeset/{}/close".format(changeset)
         self.put(path)
 
     ##################################################
@@ -1373,13 +1380,16 @@ class API(BaseReadAPI, BaseWriteAPI):
             changeset   --- Changeset wrapper, changeset id or None (create new).
 
         """
-        changeset_id = self._changeset_id(changeset)
         if not isinstance(osc, OSC):
             raise TypeError("Osc must be OSC instance.")
+        if changeset is None and self.changeset_autocreate:
+            changeset_id = str(self.create_changeset().id)
+        else:
+            changeset_id = self.get_changeset_id(changeset)
         payload = self._format_payload(osc, changeset_id)
         path = "changeset/{}/upload".format(changeset_id)
         data = self.post(path, payload)
-        if not self._auto_changeset_clear(force=True):
+        if changeset is None:
             self.close_changeset(int(changeset_id))
         data = ET.XML(data)
         result = {"node":{}, "way":{}, "relation":{}}
@@ -1408,11 +1418,11 @@ class API(BaseReadAPI, BaseWriteAPI):
         """
         if not isinstance(element, (Node, Way, Relation)):
             raise TypeError("Element must be a Node, Way or Relation instance.")
-        changeset_id = self._changeset_id(changeset)
+        changeset_id = self.get_changeset_id(changeset)
         path = "{}/{}/create".format(element.xml_tag, element.id)
         payload = "<osm>{}</osm>".format(self._format_payload(element, changeset_id))
         data = self.put(path, payload)
-        self._auto_changeset_clear()
+        self.check_auto_changeset()
         element.attribs["version"] = int(data)
         element.attribs["changeset"] = int(changeset_id)
         element.history = {element.version: element}
@@ -1433,11 +1443,11 @@ class API(BaseReadAPI, BaseWriteAPI):
         """
         if not isinstance(element, (Node, Way, Relation)):
             raise TypeError("Element must be a Node, Way or Relation instance.")
-        changeset_id = self._changeset_id(changeset)
+        changeset_id = self.get_changeset_id(changeset)
         path = "{}/{}".format(element.xml_tag, element.id)
         payload = "<osm>{}</osm>".format(self._format_payload(element, changeset_id))
         data = self.put(path, payload)
-        self._auto_changeset_clear()
+        self.check_auto_changeset()
         element.attribs["version"] = int(data)
         element.attribs["changeset"] = int(changeset_id)
         element.history = {element.version: element}
@@ -1458,11 +1468,11 @@ class API(BaseReadAPI, BaseWriteAPI):
         """
         if not isinstance(element, (Node, Way, Relation)):
             raise TypeError("Element must be a Node, Way or Relation instance.")
-        changeset_id = self._changeset_id(changeset)
+        changeset_id = self.get_changeset_id(changeset)
         path = "{}/{}".format(element.xml_tag, element.id)
         payload = "<osm>{}</osm>".format(self._format_payload(element, changeset_id, main_tag_only=True))
         data = self.delete(path, payload)
-        self._auto_changeset_clear()
+        self.check_auto_changeset()
         element.attribs["visible"] = False
         element.attribs["version"] = int(data)
         element.attribs["changeset"] = int(changeset_id)
