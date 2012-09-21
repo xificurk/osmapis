@@ -24,7 +24,7 @@ __author__ = "Petr Morávek (petr@pada.cz)"
 __copyright__ = "Copyright (C) 2010-2012 Petr Morávek"
 __license__ = "LGPL 3.0"
 
-__version__ = "0.9.2"
+__version__ = "0.9.3"
 
 from abc import ABCMeta, abstractmethod
 from base64 import b64encode
@@ -486,7 +486,6 @@ class BaseWriteAPI(object):
         create_element      --- Create node/way/relation.
         update_element      --- Update node/way/relation.
         delete_element      --- Delete node/way/relation.
-        delete_elements     --- Delete nodes/ways/relations by ids.
 
     Methods:
         create_node         --- Create node.
@@ -498,9 +497,6 @@ class BaseWriteAPI(object):
         delete_node         --- Delete node.
         delete_way          --- Delete way.
         delete_relation     --- Delete relation.
-        delete_nodes        --- Delete nodes by ids.
-        delete_ways         --- Delete ways by ids.
-        delete_relations    --- Delete relations by ids.
 
     """
 
@@ -720,67 +716,6 @@ class BaseWriteAPI(object):
         if not isinstance(relation, Relation):
             raise TypeError("Element must be Relation instance.")
         return self.delete_element(element, changeset)
-
-    def delete_elements(self, type_, ids, changeset=None):
-        """
-        Delete nodes/ways/relations by ids.
-
-        Return OSC instance.
-
-        Arguments:
-            type_       --- Element type (node/way/relation).
-            ids         --- Iterable of ids.
-
-        Keyworded arguments:
-            changeset   --- Changeset wrapper, changeset id or None (create new).
-
-        """
-        raise NotImplementedError
-
-    def delete_nodes(self, ids, changeset=None):
-        """
-        Delete nodes by ids.
-
-        Return OSC instance.
-
-        Arguments:
-            ids         --- Iterable of ids.
-
-        Keyworded arguments:
-            changeset   --- Changeset wrapper, changeset id or None (create new).
-
-        """
-        return self.delete_elements("node", ids, changeset)
-
-    def delete_ways(self, ids, changeset=None):
-        """
-        Delete ways by ids.
-
-        Return OSC instance.
-
-        Arguments:
-            ids         --- Iterable of ids.
-
-        Keyworded arguments:
-            changeset   --- Changeset wrapper, changeset id or None (create new).
-
-        """
-        return self.delete_elements("way", ids, changeset)
-
-    def delete_relations(self, ids, changeset=None):
-        """
-        Delete relations by ids.
-
-        Return OSC instance.
-
-        Arguments:
-            ids         --- Iterable of ids.
-
-        Keyworded arguments:
-            changeset   --- Changeset wrapper, changeset id or None (create new).
-
-        """
-        return self.delete_elements("relation", ids, changeset)
 
 
 class OverpassAPI(BaseReadAPI):
@@ -1015,7 +950,6 @@ class API(BaseReadAPI, BaseWriteAPI):
         create_element      --- Create node/way/relation.
         update_element      --- Update node/way/relation.
         delete_element      --- Delete node/way/relation.
-        delete_elements     --- Delete nodes/ways/relations by ids.
 
     """
 
@@ -1534,27 +1468,6 @@ class API(BaseReadAPI, BaseWriteAPI):
         element.attribs["changeset"] = int(changeset_id)
         element.history = {element.version: element}
         return element
-
-    def delete_elements(self, type_, ids, changeset=None):
-        """
-        Delete nodes/ways/relations by ids.
-
-        Return OSC instance.
-
-        Arguments:
-            type_       --- Element type (node/way/relation).
-            ids         --- Iterable of ids.
-
-        Keyworded arguments:
-            changeset   --- Changeset wrapper, changeset id or None (create new).
-
-        """
-        if type_ not in ("node", "way", "relation"):
-            raise ValueError("Type must be 'node', 'way' or 'relation'.")
-        delete = []
-        for element in self.get_elements(type_, ids):
-            delete.append(self.delete_element(element, changeset))
-        return wrappers["osc"](("delete", delete))
 
 
 
