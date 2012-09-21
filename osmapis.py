@@ -978,7 +978,7 @@ class API(BaseReadAPI, BaseWriteAPI):
         if not isinstance(auto_changeset, MutableMapping):
             auto_changeset = {}
         auto_changeset.setdefault("enabled", True)
-        auto_changeset.setdefault("size", 200)
+        auto_changeset.setdefault("size", 1000)
         auto_changeset.setdefault("tags", {}).setdefault("created_by", "osmapis/{0}".format(__version__))
         self.auto_changeset = auto_changeset
 

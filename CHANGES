@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+    [CHG] Adjust default size of auto changeset to 1000.
     [CHG] Remove multi-delete methods.
 
 Release 0.9.2 (2012-09-17)
