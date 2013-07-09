@@ -1,6 +1,7 @@
 CHANGES
 ============================================================================
 
+Release 0.9.3 (2013-07-09)
     [CHG] Refactoring automagic changeset creation and its usage.
     [CHG] Adjust default size of auto changeset to 1000.
     [CHG] Remove multi-delete methods.
