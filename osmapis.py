@@ -713,7 +713,7 @@ class BaseWriteAPI(object):
             changeset   --- Changeset wrapper, changeset id or None (create new).
 
         """
-        if not isinstance(relation, Relation):
+        if not isinstance(element, Relation):
             raise TypeError("Element must be Relation instance.")
         return self.delete_element(element, changeset)
 
